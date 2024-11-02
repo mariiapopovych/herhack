@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Fake News</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .container {
+      display: flex; 
+      justify-content: space-around; 
+      margin-top: 20px; 
+      width: 100%;
+    }
+
+    .placeholder {
+      width: 150px;
+      height: 150px;
+      border: 2px dashed #aaa;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 5px;
+      position: relative; /* Position relative for absolute positioning of child */
+      overflow: hidden; /* Prevents overflow of text */
+    }
+
+    .drop-text {
+      display: block; /* Show the drop text initially */
+    }
+
+    .bubble {
+      width: auto; /* Allow auto width */
+      height: auto; /* Allow auto height */
+      padding: 10px 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 0.8em; /* Smaller font size */
+      margin: 0; /* Remove margin */
+      transition: background-color 0.3s;
+      border-radius: 5px; /* Rounded edges for bubbles */
+    }
+
+    .bubble:hover {
+      opacity: 0.8;
+    }
+
+    /* Define colors based on type */
+    .description { background-color: red; }
+    .name { background-color: blue; }
+    .verb { background-color: yellow; color: black; }
+    .link { 
+      background-color: #ccc; /* Grey for link bubbles */
+      color: black; /* Text color for link */
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+    }
+
+    .image-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .image-container img {
+      width: 100px;
+      height: 100px;
+      cursor: pointer;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+    }
+
+    /* Centered Card */
+    .card {
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #EDEBD7;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-title {
+      font-size: 1.5em;
+      font-weight: bold;
+      margin: 10px 0;
+      color: #333;
+      text-align: center;
+    }
+
+    .card-content {
+      font-size: 1em;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Create Title</h1>
+  <button onclick="loadBubbles()">Construct Title</button>
+  <div id="bubbles-container" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;"></div>
+
+  <div class="container">
+    <div class="placeholder" ondrop="drop(event)" ondragover="allowDrop(event)">
+      <span class="drop-text">Drop Here</span>
+    </div>
+    <div class="placeholder" ondrop="drop(event)" ondragover="allowDrop(event)">
+      <span class="drop-text">Drop Here</span>
+    </div>
+    <div class="placeholder" ondrop="drop(event)" ondragover="allowDrop(event)">
+      <span class="drop-text">Drop Here</span>
+    </div>
+    <div class="placeholder" ondrop="drop(event)" ondragover="allowDrop(event)">
+      <span class="drop-text">Drop Here</span>
+    </div>
+  </div>
+
+  <button onclick="loadImages()">Load Images</button>
+  <div id="image-container" class="image-container"></div>
+
+  <!-- Web Link Choices as Selectable Bubbles -->
+  <div id="link-container" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
+    <div class="bubble link" onclick="selectWebLink('http://www.srf.ch/myschool')">http://www.srf.ch/myschool</div>
+    <div class="bubble link" onclick="selectWebLink('http://www.srf.ch/kids')">http://www.srf.ch/kids</div>
+    <div class="bubble link" onclick="selectWebLink('http://www.nzz.ch')">http://www.nzz.ch</div>
+    <div class="bubble link" onclick="selectWebLink('http://www.rts.ch/decouverte/')">http://www.rts.ch/decouverte/</div>
+    <div class="bubble link" onclick="selectWebLink('http://www.junior-magazin.ch')">http://www.junior-magazin.ch</div>
+    <div class="bubble link" onclick="selectWebLink('http://www.bbc.co.uk/newsround')">http://www.bbc.co.uk/newsround</div>
+    <div class="bubble link" onclick="selectWebLink('http://kidsworldcitizen.org/')">http://kidsworldcitizen.org/</div>
+    <div class="bubble link" onclick="selectWebLink('http://www.liberation.fr/ptit-libe/')">http://www.liberation.fr/ptit-libe/</div>
+    <div class="bubble link" onclick="selectWebLink('http://www.geo.de/geolino')">http://www.geo.de/geolino</div>
+  </div>
+
+  <button onclick="generateCard()">Generate Card</button>
+  <div id="card" class="card"></div>
+
+  <button>Publish</button>
+
+  <script>
+    let selectedBubbles = [];
+    let selectedImageSrc = null;
+    let selectedWebLink = '';
+
+    function loadBubbles() {
+      fetch('http://localhost:4000/get-bubbles')
+        .then(response => response.json())
+        .then(data => {
+          const container = document.getElementById('bubbles-container');
+          container.innerHTML = ''; // Clear previous bubbles
+          data.forEach(item => {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = item.text;
+
+            // Apply background color based on source
+            const color = getColorBySource(item.source);
+            if (color) {
+              bubble.style.backgroundColor = color;
+            }
+
+            bubble.draggable = true;
+            bubble.ondragstart = drag;
+            container.appendChild(bubble);
+          });
+        })
+        .catch(error => console.error("Error loading bubbles:", error));
+    }
+
+    function getColorBySource(source) {
+      switch (source) {
+        case 'Description': return 'red';
+        case 'Name': return 'blue';
+        case 'Verb': return 'yellow';
+        default: return '#888888'; // Grey for unknown
+      }
+    }
+
+    function loadImages() {
+      const imageContainer = document.getElementById('image-container');
+      imageContainer.innerHTML = '';
+      
+      const images = [
+        'picture card (1).png', 
+        'picture card (2).png',
+        'picture card (3).png',
+        'picture card (6).png',
+        'picture card (5).png',
+      ];
+      
+      images.forEach(imageName => {
+        const img = document.createElement('img');
+        img.src = `http://localhost:4000/images/${imageName}`;
+        img.onclick = () => selectImage(img.src);
+        imageContainer.appendChild(img);
+      });
+    }
+
+    function selectImage(src) {
+      selectedImageSrc = src;
+      const imageContainer = document.getElementById('card');
+      imageContainer.innerHTML = `<img src="${src}" style="width: 100px; height: 100px;">`;
+    }
+
+    function selectWebLink(link) {
+      selectedWebLink = link; // Set the selected link
+    }
+
+    function allowDrop(event) {
+      event.preventDefault();
+    }
+
+    function drag(event) {
+      event.dataTransfer.setData("text", event.target.textContent);
+      event.dataTransfer.setData("color", event.target.style.backgroundColor);
+    }
+
+    function drop(event) {
+      event.preventDefault();
+      const text = event.dataTransfer.getData("text");
+      const color = event.dataTransfer.getData("color");
+
+      // Hide the "Drop Here" text
+      const dropText = event.target.querySelector('.drop-text');
+      if (dropText) {
+        dropText.style.display = 'none'; // Hide drop text when an item is dropped
+      }
+
+      // Create a new bubble that fills the drop area
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble'; // Assign bubble class
+      bubble.style.backgroundColor = color;
+      bubble.style.width = '100%'; // Fill the entire drop area
+      bubble.style.height = '100%'; // Fill the entire drop area
+      bubble.innerHTML = text; // Set the inner HTML to the dragged text
+      bubble.style.color = 'white';
+      event.target.appendChild(bubble); // Append the new bubble to the drop area
+
+      // Limit the number of bubbles to 4
+      if (selectedBubbles.length < 4) {
+        selectedBubbles.push({ text, color });
+      } else {
+        alert("You can only select 4 bubbles.");
+      }
+    }
+
+    function generateCard() {
+      const card = document.getElementById('card');
+      card.innerHTML = ''; 
+
+      selectedBubbles.forEach(bubble => {
+        card.innerHTML += `<div class="card-content" style="margin: 5px 0;">${bubble.text}</div>`;
+      });
+
+      if (selectedImageSrc) {
+        card.innerHTML += `<img src="${selectedImageSrc}" style="width: 100px; height: 100px; margin-top: 10px;">`;
+      }
+
+      if (selectedWebLink) {
+        card.innerHTML += `<div class="card-content" style="margin: 5px 0;">${selectedWebLink}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>
